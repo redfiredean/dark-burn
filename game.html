@@ -306,7 +306,7 @@ class PlatformChunk{
     const b=this.def.bbox;
     this.wx=platX+b.x*SCALE;this.wy=platY+b.y*SCALE;
     this.ww=b.w*SCALE;this.wh=b.h*SCALE;
-    this.hp=5;this.state='intact';this.flashT=0;this.divots=[];
+    this.hp=5;this.state='intact';this.flashT=0;this.divots=[];this.breakTimer=0;
   }
   hit(ix,iy,worldHitX,worldHitY){
     if(this.state!=='intact') return false;
@@ -324,10 +324,11 @@ class PlatformChunk{
         });
       }
     }
-    spawnFrags(this,ix,iy,this.isFlame?8:5);
+    spawnFrags(this,ix,iy,this.isFlame?6:4);
     if(this.hp<=0){
-      this.state='gone';
-      spawnFrags(this,ix,iy,this.isFlame?18:10);
+      this.state='breaking';this.breakTimer=0.6;
+      spawnLargeShards(this,ix,iy);
+      spawnFrags(this,ix,iy,this.isFlame?10:6);
       screenShake=Math.max(screenShake,this.isFlame?10:5);
       SFX.explode();
     }
@@ -335,16 +336,25 @@ class PlatformChunk{
   }
   explodeAway(){
     if(this.state!=='intact') return;
-    this.state='gone';
-    spawnFrags(this,0,0,this.isFlame?20:12);
+    this.state='breaking';this.breakTimer=0.55;
+    spawnLargeShards(this,0,0);
+    spawnFrags(this,0,0,this.isFlame?10:7);
     spawnExplosion(this.wx+this.ww/2,this.wy+this.wh/2,'#ff4400');
     screenShake=Math.max(screenShake,8);
     SFX.explode();
   }
-  update(dt){if(this.flashT>0)this.flashT-=dt;}
+  update(dt){
+    if(this.flashT>0) this.flashT-=dt;
+    if(this.state==='breaking'){
+      this.breakTimer-=dt;
+      if(this.breakTimer<=0) this.state='gone';
+    }
+  }
   draw(){
     if(this.state==='gone') return;
+    const breakFade=this.state==='breaking'?Math.max(0,this.breakTimer/0.55):1;
     ctx.save();
+    if(this.state==='breaking') ctx.globalAlpha=breakFade;
     ctx.translate(this.wx,this.wy);ctx.scale(SCALE,SCALE);
     ctx.translate(-this.def.bbox.x,-this.def.bbox.y);
 
@@ -938,12 +948,14 @@ function spawnDust(x,y,isLand){
 // FRAGMENTS
 // ══════════════════════════════════════════════════════════
 class Fragment{
-  constructor(x,y,vx,vy,col,sz){
+  constructor(x,y,vx,vy,col,sz,delay=0){
     this.x=x;this.y=y;this.vel={x:vx,y:vy};this.col=col;this.sz=sz;
     this.angle=Math.random()*Math.PI*2;this.angV=(Math.random()-.5)*14;
     this.alpha=1;this.life=14+Math.random()*10;this.settled=false;this.bounces=0;
+    this.delay=delay;
   }
   update(dt){
+    if(this.delay>0){this.delay-=dt;return;}
     if(this.angV){this.angle+=this.angV*dt;this.angV*=0.87;}
     if(!this.settled)this.vel.y+=GRAVITY*dt;
     else{this.vel.x*=0.78;if(Math.abs(this.vel.x)<2)this.vel.x=0;}
@@ -966,7 +978,7 @@ class Fragment{
     if(this.x>W-this.sz){this.x=W-this.sz;this.vel.x=-Math.abs(this.vel.x)*0.4;}
   }
   draw(){
-    if(this.alpha<=0) return;
+    if(this.delay>0||this.alpha<=0) return;
     ctx.save();ctx.globalAlpha=this.alpha;ctx.translate(this.x,this.y);ctx.rotate(this.angle);
     ctx.fillStyle=this.col;ctx.fillRect(-this.sz,-this.sz,this.sz*2,this.sz*2);ctx.restore();
   }
@@ -982,6 +994,28 @@ function spawnFrags(chunk,ix,iy,n){
     const sz=0.8+Math.random()*2.2;
     fragments.push(new Fragment(fx,fy,Math.cos(ang)*spd+(ix||0)*0.12,Math.sin(ang)*spd-15+(iy||0)*0.12,
       fcols[Math.floor(Math.random()*fcols.length)],sz));
+  }
+}
+
+function spawnLargeShards(chunk,ix,iy){
+  // Large staggered slabs that break away from the chunk over ~0.5s
+  const fcols=chunk.isFlame
+    ?['#eb5f40','#e41f13','#ff7744','#cc2200','#ff9966','#ff5522']
+    :['#ffffff','#e8e8e8','#d0d0d0','#cccccc'];
+  const n=chunk.isFlame?20:14;
+  for(let i=0;i<n;i++){
+    const fx=chunk.wx+(0.05+Math.random()*0.9)*chunk.ww;
+    const fy=chunk.wy+(0.1+Math.random()*0.8)*chunk.wh;
+    const ang=-Math.PI*0.5+(Math.random()-.5)*Math.PI*1.5;
+    const spd=35+Math.random()*140;
+    const sz=8+Math.random()*13;          // 8-21px — substantial slabs
+    const delay=Math.random()*0.55;       // stagger 0–0.55s
+    fragments.push(new Fragment(
+      fx,fy,
+      Math.cos(ang)*spd+(ix||0)*0.06,
+      Math.sin(ang)*spd-8+(iy||0)*0.06,
+      fcols[Math.floor(Math.random()*fcols.length)],sz,delay
+    ));
   }
 }
 
