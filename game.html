@@ -293,42 +293,65 @@ class Spring{
 }
 
 // ══════════════════════════════════════════════════════════
-// PLATFORM CHUNK — with hole-punch damage mask
+// PLATFORM CHUNK — cell-grid breakaway system
 // ══════════════════════════════════════════════════════════
 class PlatformChunk{
   constructor(def){
     this.def=def;this.id=def.id;this.isFlame=!!def.isFlame;
     this.p2d=new Path2D(SVG_PATHS[def.id]);
-    this.divots=[];
+    this.cells=[];
     this.reset();
+  }
+  _buildCells(){
+    const b=this.def.bbox;
+    const cols=this.isFlame?3:2, rows=2;
+    this.cells=[];
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+      const lw=b.w/cols, lh=b.h/rows;
+      const lx=b.x+c*lw, ly=b.y+r*lh;
+      this.cells.push({
+        lx,ly,lw,lh,
+        // original world center of this cell
+        wcx:this.wx+(c*lw+lw/2)*SCALE,
+        wcy:this.wy+(r*lh+lh/2)*SCALE,
+        state:'intact', // 'intact'|'flying'|'gone'
+        ox:0,oy:0,vx:0,vy:0,angle:0,angVel:0,alpha:1
+      });
+    }
   }
   reset(){
     const b=this.def.bbox;
     this.wx=platX+b.x*SCALE;this.wy=platY+b.y*SCALE;
     this.ww=b.w*SCALE;this.wh=b.h*SCALE;
-    this.hp=5;this.state='intact';this.flashT=0;this.divots=[];this.breakTimer=0;
+    this.hp=5;this.state='intact';this.flashT=0;
+    this._buildCells();
+  }
+  _ejectCell(cell,ix,iy,explosive=false){
+    if(cell.state!=='intact') return;
+    cell.state='flying'; cell.ox=0; cell.oy=0;
+    const spd=explosive?(200+Math.random()*380):(110+Math.random()*220);
+    const baseAng=Math.atan2(iy||0,ix||1);
+    const ang=baseAng+(Math.random()-.5)*Math.PI*1.1-Math.PI*0.2;
+    cell.vx=Math.cos(ang)*spd;
+    cell.vy=Math.sin(ang)*spd-80;
+    cell.angVel=(Math.random()-.5)*10;
+    cell.angle=0; cell.alpha=1;
   }
   hit(ix,iy,worldHitX,worldHitY){
     if(this.state!=='intact') return false;
-    this.hp--;this.flashT=0.12;SFX.crumble();
-    // Stamp 2-3 small divots at hit location (in local SVG coords)
-    if(worldHitX!==undefined){
-      const lx=(worldHitX-this.wx)/SCALE+this.def.bbox.x;
-      const ly=(worldHitY-this.wy)/SCALE+this.def.bbox.y;
-      const count=2+Math.floor(Math.random()*2);
-      for(let d=0;d<count;d++){
-        this.divots.push({
-          x:lx+(Math.random()-.5)*3,
-          y:ly+(Math.random()-.5)*3,
-          r:0.9+Math.random()*0.8   // small in SVG space = ~4-7px world
-        });
-      }
-    }
-    spawnFrags(this,ix,iy,this.isFlame?6:4);
+    this.hp--; this.flashT=0.12; SFX.crumble();
+    // Eject the intact cell nearest the hit point
+    const hx=worldHitX||this.wx+this.ww*0.5;
+    const hy=worldHitY||this.wy+this.wh*0.5;
+    const intact=this.cells.filter(c=>c.state==='intact');
+    intact.sort((a,b)=>Math.hypot(a.wcx+a.ox-hx,a.wcy+a.oy-hy)-Math.hypot(b.wcx+b.ox-hx,b.wcy+b.oy-hy));
+    if(intact.length>0) this._ejectCell(intact[0],ix,iy);
+    spawnFrags(this,ix,iy,this.isFlame?5:3);
     if(this.hp<=0){
-      this.state='breaking';this.breakTimer=0.6;
+      // Eject all remaining cells explosively
+      this.cells.filter(c=>c.state==='intact').forEach(c=>this._ejectCell(c,ix,iy,true));
+      this.state='gone';
       spawnLargeShards(this,ix,iy);
-      spawnFrags(this,ix,iy,this.isFlame?10:6);
       screenShake=Math.max(screenShake,this.isFlame?10:5);
       SFX.explode();
     }
@@ -336,82 +359,110 @@ class PlatformChunk{
   }
   explodeAway(){
     if(this.state!=='intact') return;
-    this.state='breaking';this.breakTimer=0.55;
+    this.cells.forEach(c=>this._ejectCell(c,0,-1,true));
+    this.state='gone';
     spawnLargeShards(this,0,0);
-    spawnFrags(this,0,0,this.isFlame?10:7);
     spawnExplosion(this.wx+this.ww/2,this.wy+this.wh/2,'#ff4400');
     screenShake=Math.max(screenShake,8);
     SFX.explode();
   }
   update(dt){
     if(this.flashT>0) this.flashT-=dt;
-    if(this.state==='breaking'){
-      this.breakTimer-=dt;
-      if(this.breakTimer<=0) this.state='gone';
+    for(const cell of this.cells){
+      if(cell.state!=='flying') continue;
+      cell.vy+=GRAVITY*dt;
+      cell.ox+=cell.vx*dt; cell.oy+=cell.vy*dt;
+      cell.vx*=Math.pow(0.92,dt*60);
+      cell.angle+=cell.angVel*dt;
+      cell.angVel*=Math.pow(0.88,dt*60);
+      cell.alpha=Math.max(0,cell.alpha-dt*0.42);
+      if(cell.alpha<=0){cell.state='gone';continue;}
+      // Floor bounce
+      const bot=cell.wcy+cell.oy+cell.lh*SCALE/2;
+      if(bot>H){
+        cell.oy=H-cell.wcy-cell.lh*SCALE/2;
+        cell.vy=-Math.abs(cell.vy)*0.28;
+        cell.vx*=0.55;
+        if(Math.abs(cell.vy)<40) cell.alpha-=dt*1.8;
+      }
     }
   }
-  draw(){
-    if(this.state==='gone') return;
-    const breakFade=this.state==='breaking'?Math.max(0,this.breakTimer/0.55):1;
-    ctx.save();
-    if(this.state==='breaking') ctx.globalAlpha=breakFade;
-    ctx.translate(this.wx,this.wy);ctx.scale(SCALE,SCALE);
-    ctx.translate(-this.def.bbox.x,-this.def.bbox.y);
-
+  _drawFillStyle(isFlash){
     if(this.isFlame){
       const g=ctx.createLinearGradient(82.86,50.71,82.86,1);
-      if(this.flashT>0){g.addColorStop(0,'#fff');g.addColorStop(1,'#fff');}
+      if(isFlash){g.addColorStop(0,'#fff');g.addColorStop(1,'#fff');}
       else if(fireActive){
         const fp=0.5+0.5*Math.sin(Date.now()*0.009);
         g.addColorStop(0,`hsl(${15+fp*20},100%,${55+fp*20}%)`);
         g.addColorStop(0.5,`hsl(${8+fp*10},100%,${45+fp*15}%)`);
         g.addColorStop(1,`hsl(${3+fp*5},100%,${35+fp*10}%)`);
       } else {g.addColorStop(0,'#eb5f40');g.addColorStop(1,'#e41f13');}
-      ctx.fillStyle=g;
-    } else {
-      const dmg=1-this.hp/5;
-      ctx.fillStyle=this.flashT>0?'#fff':`rgba(255,255,255,${Math.max(0.25,1-dmg*0.5)})`;
+      return g;
     }
-    ctx.fill(this.p2d);
+    const dmg=1-this.hp/5;
+    return isFlash?'#fff':`rgba(255,255,255,${Math.max(0.25,1-dmg*0.5)})`;
+  }
+  draw(){
+    const hasCells=this.cells.some(c=>c.state!=='gone');
+    if(!hasCells) return;
+    const b=this.def.bbox;
+    const intactCells=this.cells.filter(c=>c.state==='intact');
 
-    // Divots — punched craters where bullets hit
-    if(this.divots.length>0){
+    // ── Intact cells (clipped slices of the SVG path) ──
+    if(intactCells.length>0){
       ctx.save();
-      // Clip to shape so divots don't bleed outside
-      ctx.beginPath();ctx.rect(this.def.bbox.x-1,this.def.bbox.y-1,this.def.bbox.w+2,this.def.bbox.h+2);
-      ctx.clip();
-      // Dark shadow ring (crater rim)
-      ctx.shadowBlur=0;
-      for(const d of this.divots){
-        ctx.fillStyle='rgba(0,0,0,0.55)';
-        ctx.beginPath();ctx.arc(d.x,d.y,d.r+0.7,0,Math.PI*2);ctx.fill();
+      ctx.translate(this.wx,this.wy); ctx.scale(SCALE,SCALE); ctx.translate(-b.x,-b.y);
+      ctx.fillStyle=this._drawFillStyle(this.flashT>0);
+      for(const cell of intactCells){
+        ctx.save();
+        ctx.beginPath(); ctx.rect(cell.lx,cell.ly,cell.lw,cell.lh); ctx.clip();
+        ctx.fill(this.p2d);
+        ctx.restore();
       }
-      // Punch center out fully
-      ctx.globalCompositeOperation='destination-out';
-      for(const d of this.divots){
-        ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,Math.PI*2);
-        ctx.fillStyle='rgba(0,0,0,1)';ctx.fill();
-      }
-      ctx.globalCompositeOperation='source-over';
-      // Bright rim highlight (top-left edge of crater)
-      for(const d of this.divots){
-        ctx.strokeStyle='rgba(255,255,255,0.28)';ctx.lineWidth=0.4;
-        ctx.beginPath();ctx.arc(d.x-0.3,d.y-0.3,d.r+0.2,Math.PI,Math.PI*1.8);ctx.stroke();
+      // Glow
+      if(this.isFlame){
+        const pulse=fireActive?(28+18*Math.sin(Date.now()*0.009)):18;
+        ctx.shadowBlur=pulse;
+        ctx.shadowColor=fireActive?`rgba(255,${60+80*Math.sin(Date.now()*0.009)},0,1)`:'#ff4400';
+        for(const cell of intactCells){
+          ctx.save(); ctx.beginPath(); ctx.rect(cell.lx,cell.ly,cell.lw,cell.lh); ctx.clip();
+          ctx.fillStyle='transparent'; ctx.fill(this.p2d); ctx.restore();
+        }
+      } else if(this.hp===5){
+        ctx.shadowBlur=5; ctx.shadowColor='rgba(255,255,255,0.2)';
+        for(const cell of intactCells){
+          ctx.save(); ctx.beginPath(); ctx.rect(cell.lx,cell.ly,cell.lw,cell.lh); ctx.clip();
+          ctx.fillStyle='transparent'; ctx.fill(this.p2d); ctx.restore();
+        }
       }
       ctx.restore();
     }
 
-    // Glow
-    if(this.isFlame&&this.state==='intact'){
-      const pulse=fireActive?(28+18*Math.sin(Date.now()*0.009)):18;
-      ctx.shadowBlur=pulse;
-      ctx.shadowColor=fireActive?`rgba(255,${60+80*Math.sin(Date.now()*0.009)},0,1)`:'#ff4400';
-      ctx.fillStyle='transparent';ctx.fill(this.p2d);
-    } else if(this.state==='intact'&&this.hp===5){
-      ctx.shadowBlur=5;ctx.shadowColor='rgba(255,255,255,0.2)';
-      ctx.fillStyle='transparent';ctx.fill(this.p2d);
+    // ── Flying cells (displaced + rotated clipped slices) ──
+    for(const cell of this.cells){
+      if(cell.state!=='flying') continue;
+      ctx.save();
+      ctx.globalAlpha=cell.alpha;
+      // Translate to displaced cell center, rotate, then back into SVG space
+      ctx.translate(cell.wcx+cell.ox, cell.wcy+cell.oy);
+      ctx.rotate(cell.angle);
+      ctx.scale(SCALE,SCALE);
+      ctx.translate(-(cell.lx+cell.lw/2), -(cell.ly+cell.lh/2));
+      // Fill: flame gets orange gradient, letters get white
+      if(this.isFlame){
+        const g=ctx.createLinearGradient(82.86,50.71,82.86,1);
+        g.addColorStop(0,'#eb5f40'); g.addColorStop(1,'#e41f13');
+        ctx.fillStyle=g;
+      } else {
+        ctx.fillStyle='#ffffff';
+      }
+      // Clip to this cell's rect in SVG-relative-to-center space, then fill path
+      ctx.save();
+      ctx.beginPath(); ctx.rect(cell.lx,cell.ly,cell.lw,cell.lh); ctx.clip();
+      ctx.fill(this.p2d);
+      ctx.restore();
+      ctx.restore();
     }
-    ctx.restore();
   }
   get top(){return this.wy;}
   get bot(){return this.wy+this.wh;}
