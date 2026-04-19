@@ -420,7 +420,7 @@ class PlatformChunk{
     ctx.fillStyle=this._drawFillStyle(this.flashT>0);
     for(const cell of aliveCells){
       ctx.save();
-      ctx.beginPath(); ctx.rect(cell.lx,cell.ly,cell.lw,cell.lh); ctx.clip();
+      ctx.beginPath(); ctx.rect(cell.lx-0.5,cell.ly-0.5,cell.lw+1,cell.lh+1); ctx.clip();
       ctx.fill(this.p2d);
       ctx.restore();
     }
@@ -430,13 +430,13 @@ class PlatformChunk{
       ctx.shadowBlur=pulse;
       ctx.shadowColor=fireActive?`rgba(255,${60+80*Math.sin(Date.now()*0.009)},0,1)`:'#ff4400';
       for(const cell of aliveCells){
-        ctx.save(); ctx.beginPath(); ctx.rect(cell.lx,cell.ly,cell.lw,cell.lh); ctx.clip();
+        ctx.save(); ctx.beginPath(); ctx.rect(cell.lx-0.5,cell.ly-0.5,cell.lw+1,cell.lh+1); ctx.clip();
         ctx.fillStyle='transparent'; ctx.fill(this.p2d); ctx.restore();
       }
     } else if(this.hp===this.cells.length){
       ctx.shadowBlur=5; ctx.shadowColor='rgba(255,255,255,0.2)';
       for(const cell of aliveCells){
-        ctx.save(); ctx.beginPath(); ctx.rect(cell.lx,cell.ly,cell.lw,cell.lh); ctx.clip();
+        ctx.save(); ctx.beginPath(); ctx.rect(cell.lx-0.5,cell.ly-0.5,cell.lw+1,cell.lh+1); ctx.clip();
         ctx.fillStyle='transparent'; ctx.fill(this.p2d); ctx.restore();
       }
     }
@@ -1095,7 +1095,7 @@ function inp(p,a){
   } else {
     if(a==='left')  return keys['ArrowLeft'] ||keys['j']||keys['J']||touch['p1-left'];
     if(a==='right') return keys['ArrowRight']||keys['l']||keys['L']||touch['p1-right'];
-    if(a==='shoot') return keys['/']||keys[';']||touch['p1-shoot'];
+    if(a==='shoot') return keys['Alt']||keys['/']||keys[';']||touch['p1-shoot'];
     if(a==='duck')  return keys['ArrowDown'];
   }
   return false;
@@ -1373,7 +1373,7 @@ function drawInstructions(){
 
   const rows=[
     {label:'Move / Jump',   p1:'A D W',       p2:'← → ↑'},
-    {label:'Shoot',         p1:'G  or  Space', p2:'/  or  Space'},
+    {label:'Shoot',         p1:'G  or  Space', p2:'Option'},
     {label:'Grenade',       p1:'Hold G/Space', p2:'Hold / '},
     {label:'Duck',          p1:'S',            p2:'↓'},
   ];
