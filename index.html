@@ -18,14 +18,19 @@ canvas { display:block; }
 .btn.shoot-btn.on{background:rgba(235,95,64,0.65);}
 .cp.R .btn.shoot-btn.on{background:rgba(74,158,202,0.65);}
 .be{background:transparent;border:none;}
+/* Solo (1P phone) — shoot on left, D-pad on right */
 #mc.solo .cp.R{display:none;}
-#mc.solo .cp.L{left:50%;transform:translateX(-50%);}
-#mc.solo{display:flex;justify-content:center;}
+#mc.solo .cp.L{left:auto;right:14px;}
+#mc.solo .cp.L .shoot-btn{display:none;}
+#solo-sh{display:none;position:absolute;bottom:54px;left:14px;width:64px;height:64px;border-radius:14px;align-items:center;justify-content:center;font-size:26px;color:#fff;background:rgba(235,95,64,0.25);border:2px solid rgba(235,95,64,0.55);user-select:none;-webkit-user-select:none;}
+#mc.solo #solo-sh{display:flex;}
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 <div id="mc">
+  <!-- Standalone shoot button, shown only in solo mode on the left -->
+  <div id="solo-sh" data-p="0" data-a="shoot">🔫</div>
   <div class="cp L">
     <div class="be"></div><div class="btn" data-p="0" data-a="jump">↑</div><div class="be"></div>
     <div class="btn" data-p="0" data-a="left">←</div><div class="btn shoot-btn" data-p="0" data-a="shoot">🔫</div><div class="btn" data-p="0" data-a="right">→</div>
@@ -1092,7 +1097,7 @@ function inp(p,a){
   if(p===0){
     if(a==='left')  return keys['a']||keys['A']||touch['p0-left'];
     if(a==='right') return keys['d']||keys['D']||touch['p0-right'];
-    if(a==='shoot') return keys['g']||keys['G']||keys[' ']||touch['p0-shoot'];
+    if(a==='shoot') return keys[' ']||touch['p0-shoot'];
     if(a==='duck')  return keys['s']||keys['S'];
   } else {
     if(a==='left')  return keys['ArrowLeft'] ||keys['j']||keys['J']||touch['p1-left'];
@@ -1324,34 +1329,49 @@ let _sBtns=null;
 function drawStart(){
   drawBG();
   const mob=W<560;
-  // Scale flame logo to fit screen
-  const ls=Math.min(8,W/103);
-  const logoW=(55+27.5)*ls,lx=W/2-logoW/2,ly=H*(mob?0.04:0.04);
-  ctx.save();ctx.translate(lx,ly);ctx.scale(ls,ls);ctx.translate(-55,-1);
-  const fp=new Path2D(SVG_PATHS.flame);
-  ctx.shadowBlur=40;ctx.shadowColor='#ff4400';
-  const fg=ctx.createLinearGradient(82.86,50.71,82.86,1);
-  fg.addColorStop(0,'#eb5f40');fg.addColorStop(1,'#e41f13');
-  ctx.fillStyle=fg;ctx.fill(fp);ctx.restore();
+  // ── Huge background logo, centered on left 50% of screen ──
+  const bgLs=Math.min(H/60,W/40);           // scale so flame fills ~half the screen height
+  const bgLogoW=(55+27.5)*bgLs;
+  // Place so right edge of logo lands at ~50% of screen width (only right half visible)
+  const bgLx=W*0.5-bgLogoW;                 // shift left so logo center is off-screen left
+  const bgLy=H*0.5-75.18*bgLs*0.5;         // vertically center the flame
+  ctx.save();
+  ctx.globalAlpha=0.18;
+  ctx.translate(bgLx,bgLy);ctx.scale(bgLs,bgLs);ctx.translate(-55,-1);
+  const bgFp=new Path2D(SVG_PATHS.flame);
+  ctx.shadowBlur=0;
+  const bgFg=ctx.createLinearGradient(82.86,50.71,82.86,1);
+  bgFg.addColorStop(0,'#eb5f40');bgFg.addColorStop(1,'#e41f13');
+  ctx.fillStyle=bgFg;ctx.fill(bgFp);
+  ctx.restore();
+
+  // ── Title ──
   ctx.save();ctx.textAlign='center';
-  const titleSize=Math.min(66,W*0.15);
-  ctx.shadowBlur=30;ctx.shadowColor='#eb5f40';ctx.font=`bold ${titleSize}px Arial`;ctx.fillStyle='#ffffff';
-  ctx.fillText('DARK BURN',W/2,H*(mob?0.42:0.44));ctx.shadowBlur=0;
-  ctx.font=`${mob?12:15}px Arial`;ctx.fillStyle='rgba(255,255,255,0.45)';
-  ctx.fillText('Custom Designed for the Creators at Dark Burn',W/2,H*(mob?0.48:0.51));
-  // Buttons — stack vertically on mobile, side-by-side on desktop
+  // Eyebrow: "DARK BURN"
+  const eyeSize=Math.min(mob?22:28, W*0.06);
+  ctx.font=`bold ${eyeSize}px Arial`;ctx.fillStyle='rgba(235,95,64,0.9)';
+  ctx.shadowBlur=12;ctx.shadowColor='#eb5f40';
+  const titleCY=H*(mob?0.38:0.42);
+  ctx.fillText('DARK BURN',W/2,titleCY-eyeSize*0.4);
+  // Main title: "FIGHT CLUB"
+  const mainSize=Math.min(mob?54:78, W*0.16);
+  ctx.shadowBlur=40;ctx.shadowColor='rgba(235,95,64,0.6)';
+  ctx.font=`bold ${mainSize}px Arial`;ctx.fillStyle='#ffffff';
+  ctx.fillText('FIGHT CLUB',W/2,titleCY+mainSize*0.85);
+  ctx.shadowBlur=0;
+
+  // ── Buttons ──
   const bW=mob?Math.min(260,W*0.68):190,bH=mob?54:58;
   let b1x,b1y,b2x,b2y;
   if(mob){
-    b1x=W/2-bW/2; b1y=H*0.56;
+    b1x=W/2-bW/2; b1y=H*0.62;
     b2x=W/2-bW/2; b2y=b1y+bH+14;
   } else {
-    b1x=W/2-bW-18; b1y=H*0.6;
-    b2x=W/2+18;    b2y=H*0.6;
+    b1x=W/2-bW-18; b1y=H*0.66;
+    b2x=W/2+18;    b2y=H*0.66;
   }
   drawBtn(b1x,b1y,bW,bH,'1 PLAYER','#eb5f40','#fff');
   if(mob){
-    // 2P needs a bigger screen
     ctx.globalAlpha=0.35;
     drawBtn(b2x,b2y,bW,bH,'2 PLAYERS','#4a9eca','#fff');
     ctx.globalAlpha=1;
@@ -1360,17 +1380,20 @@ function drawStart(){
   } else {
     drawBtn(b2x,b2y,bW,bH,'2 PLAYERS','#4a9eca','#fff');
   }
-  const lowestBtnY=mob?b2y:b1y;
-  const ibW=mob?bW:160,ibH=mob?46:36,ibX=W/2-ibW/2,ibY=lowestBtnY+bH+16;
-  drawBtn(ibX,ibY,ibW,ibH,'HOW TO PLAY','rgba(255,255,255,0.12)','rgba(255,255,255,0.7)');
-  if(!mob){
-    ctx.font='12px Arial';ctx.fillStyle='rgba(255,255,255,0.22)';
-    ctx.fillText('or press H',W/2,ibY+ibH+18);
+  // How To Play — desktop only (not on touch devices)
+  let ibW=0,ibH=0,ibX=0,ibY=0;
+  if(!_hasTouchInput){
+    ibW=160;ibH=36;ibX=W/2-ibW/2;ibY=(mob?b2y:b1y)+bH+16;
+    drawBtn(ibX,ibY,ibW,ibH,'HOW TO PLAY','rgba(255,255,255,0.12)','rgba(255,255,255,0.7)');
   }
   ctx.font=`${mob?11:13}px Arial`;ctx.fillStyle='rgba(255,255,255,0.28)';
   ctx.fillText('Game Designers: Dean & Devon Fanton  |  @redfiredean',W/2,H*0.96);
   ctx.restore();
-  _sBtns={p1:{x:b1x,y:b1y,w:bW,h:bH},p2:{x:b2x,y:b2y,w:bW,h:bH},info:{x:ibX,y:ibY,w:ibW,h:ibH}};
+  _sBtns={
+    p1:{x:b1x,y:b1y,w:bW,h:bH},
+    p2:{x:b2x,y:b2y,w:bW,h:bH},
+    info:ibW>0?{x:ibX,y:ibY,w:ibW,h:ibH}:null
+  };
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1399,8 +1422,8 @@ function drawInstructions(){
   const mob=W<560;
   const rows=[
     {label:'Move / Jump',   p1:'A D W',       p2:'← → ↑'},
-    {label:'Shoot',         p1:'G / Space',    p2:mob?'Option':'Option'},
-    {label:'Grenade',       p1:'Hold G/Space', p2:'Hold Option'},
+    {label:'Shoot',         p1:'Space',        p2:'Option'},
+    {label:'Grenade',       p1:'Hold Space',   p2:'Hold Option'},
     {label:'Duck',          p1:'S',            p2:'↓'},
   ];
 
@@ -1568,8 +1591,11 @@ function drawRoundEnd(){
   let msg,col;
   if(gameMode===2&&roundWinner>=0){msg=`${CHARS_DEF[selChars[roundWinner]].name.toUpperCase()} WINS!`;col=CHARS_DEF[selChars[roundWinner]].color;}
   else{msg='ROUND OVER';col='#fff';}
-  const rsz=Math.min(78,W*0.17);
-  ctx.shadowBlur=40;ctx.shadowColor=col;ctx.font=`bold ${rsz}px Arial`;ctx.fillStyle=col;
+  // Scale font so text never overflows screen width
+  let rsz=Math.min(78,W*0.17);
+  ctx.font=`bold ${rsz}px Arial`;
+  while(ctx.measureText(msg).width>W*0.9&&rsz>18){rsz-=2;ctx.font=`bold ${rsz}px Arial`;}
+  ctx.shadowBlur=40;ctx.shadowColor=col;ctx.fillStyle=col;
   ctx.fillText(msg,W/2,H/2);ctx.shadowBlur=0;
   ctx.font=`${Math.min(22,W*0.05)}px Arial`;ctx.fillStyle='rgba(255,255,255,0.6)';
   ctx.fillText('Next round starting…',W/2,H/2+rsz*0.8);ctx.restore();
