@@ -11,6 +11,8 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 body { overflow:hidden; background:#000; touch-action:none; font-family:'Poppins','Arial',sans-serif; }
 canvas { display:block; }
+#blur-ov{display:none;position:fixed;inset:0;backdrop-filter:blur(18px) saturate(110%);-webkit-backdrop-filter:blur(18px) saturate(110%);background:rgba(0,0,0,0.52);z-index:6;pointer-events:none;}
+#ui-canvas{display:none;position:fixed;top:0;left:0;pointer-events:none;z-index:7;}
 #mc { position:fixed; bottom:0; left:0; width:100%; height:220px; display:none; pointer-events:all; z-index:10; background:rgba(0,0,0,0.18); backdrop-filter:blur(24px) saturate(120%); -webkit-backdrop-filter:blur(24px) saturate(120%); border-top:1px solid rgba(255,255,255,0.09); }
 .cp { position:absolute; bottom:22px; display:grid; grid-template-columns:repeat(3,64px); grid-template-rows:repeat(2,64px); gap:6px; }
 .cp.L{left:14px;}.cp.R{right:14px;}
@@ -32,6 +34,8 @@ canvas { display:block; }
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="blur-ov"></div>
+<canvas id="ui-canvas"></canvas>
 <div id="mc">
   <!-- Standalone shoot button, shown only in solo mode on the left -->
   <div id="solo-sh" data-p="0" data-a="shoot"><svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="14" r="5" stroke="white" stroke-width="2"/><line x1="14" y1="2" x2="14" y2="7" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="21" x2="14" y2="26" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="2" y1="14" x2="7" y2="14" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="14" x2="26" y2="14" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></div>
@@ -275,7 +279,10 @@ const MAX_GRENADES=2;
 // GLOBALS
 // ══════════════════════════════════════════════════════════
 const canvas=document.getElementById('game');
-const ctx=canvas.getContext('2d');
+let ctx=canvas.getContext('2d');
+const uiCanvas=document.getElementById('ui-canvas');
+let uiCtx=uiCanvas.getContext('2d');
+const blurOv=document.getElementById('blur-ov');
 let W,H;
 let platX=0,platY=0;
 let chunks=[],characters=[],bullets=[],particles=[],fragments=[],grenades=[],bombs=[];
@@ -1272,8 +1279,9 @@ function drawBtn(x,y,w,h,label,col,textCol,fs){
   ctx.lineWidth=1.5;rr(x,y,w,h,R);ctx.stroke();ctx.shadowBlur=0;
   // Label
   if(col&&col[0]==='#'){const[cr,cg,cb]=hexRgb(col);ctx.shadowBlur=8;ctx.shadowColor=`rgba(${cr},${cg},${cb},0.8)`;}
-  ctx.fillStyle=textCol||'#fff';ctx.font=`600 ${fs||17}px Poppins,Arial,sans-serif`;ctx.textAlign='center';
-  ctx.fillText(label,x+w/2,y+h/2+6);ctx.shadowBlur=0;
+  const _fs=fs||17;
+  ctx.fillStyle=textCol||'#fff';ctx.font=`600 ${_fs}px Poppins,Arial,sans-serif`;ctx.textAlign='center';
+  ctx.fillText(label,x+w/2,y+h/2+_fs*0.36);ctx.shadowBlur=0;
 }
 
 function drawBG(){
@@ -1472,16 +1480,10 @@ function drawStart(){
 // ══════════════════════════════════════════════════════════
 let _showInstructions=false;
 function drawInstructions(){
-  // Darken + blur backdrop
-  backdropBlur(0,0,W,H,0,16);
   ctx.save();
-  ctx.fillStyle='rgba(0,0,0,0.65)';
-  ctx.fillRect(0,0,W,H);
   // Panel
   const pw=Math.min(560,W*0.82),ph=Math.min(420,H*0.8);
   const px=W/2-pw/2,py=H/2-ph/2;
-  // Blur behind modal panel
-  backdropBlur(px,py,pw,ph,18,10);
   // Glass modal panel
   ctx.shadowBlur=48;ctx.shadowColor='rgba(0,0,0,0.7)';
   ctx.fillStyle='rgba(0,0,0,0.01)';rr(px,py+6,pw,ph,18);ctx.fill();ctx.shadowBlur=0;
@@ -1676,8 +1678,6 @@ function drawHUD(){
 }
 
 function drawRoundEnd(){
-  backdropBlur(0,0,W,H,0,14);
-  ctx.fillStyle='rgba(0,0,0,0.52)';ctx.fillRect(0,0,W,H);
   ctx.save();ctx.textAlign='center';
   let msg,col;
   if(gameMode===2&&roundWinner>=0){msg=`${CHARS_DEF[selChars[roundWinner]].name.toUpperCase()} WINS!`;col=CHARS_DEF[selChars[roundWinner]].color;}
@@ -1736,6 +1736,12 @@ let lastT=0;
 function loop(ts){
   try{
   const dt=Math.min((ts-lastT)/1000,0.05);lastT=ts;_currentDt=dt;
+  // CSS blur overlay — shown for round-end and instructions modal
+  const needBlur=gameState==='roundEnd'||(gameState==='start'&&_showInstructions);
+  blurOv.style.display=needBlur?'block':'none';
+  uiCanvas.style.display=needBlur?'block':'none';
+  if(needBlur) uiCtx.clearRect(0,0,W,H);
+
   ctx.save();
   if(screenShake>0){
     ctx.translate((Math.random()-.5)*screenShake*2,(Math.random()-.5)*screenShake*2);
@@ -1743,7 +1749,10 @@ function loop(ts){
   }
   ctx.clearRect(-20,-20,W+40,H+40);
 
-  if(gameState==='start'){drawStart();if(_showInstructions)drawInstructions();}
+  if(gameState==='start'){
+    drawStart();
+    if(_showInstructions){const _c=ctx;ctx=uiCtx;drawInstructions();ctx=_c;}
+  }
   else if(gameState==='charSelect'){drawCharSelect();}
   else {
     drawBG();
@@ -1782,8 +1791,9 @@ function loop(ts){
     for(const ch of characters) ch.draw();
     drawHUD();
     if(gameState==='roundEnd'){
-      roundEndTimer-=dt;drawRoundEnd();
-      if(roundEndTimer<=0) resetRound();
+      roundEndTimer-=dt;
+      if(roundEndTimer<=0){resetRound();}
+      else{const _c=ctx;ctx=uiCtx;drawRoundEnd();ctx=_c;}
     }
   }
   ctx.restore();
@@ -1800,6 +1810,9 @@ function resize(){
   canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
   canvas.style.width=W+'px';canvas.style.height=H+'px';
   ctx.scale(dpr,dpr);
+  uiCanvas.width=canvas.width;uiCanvas.height=canvas.height;
+  uiCanvas.style.width=W+'px';uiCanvas.style.height=H+'px';
+  uiCtx=uiCanvas.getContext('2d');uiCtx.scale(dpr,dpr);
   if(_blurCanvas){_blurCanvas.width=canvas.width;_blurCanvas.height=canvas.height;}
   atmoParticles=[];for(let i=0;i<45;i++) atmoParticles.push(new AtmoParticle());
   if(gameState==='playing'||gameState==='roundEnd'){
