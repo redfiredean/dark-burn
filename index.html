@@ -4,9 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Dark Burn Fight Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { overflow:hidden; background:#000; touch-action:none; font-family:'Arial',sans-serif; }
+body { overflow:hidden; background:#000; touch-action:none; font-family:'Poppins','Arial',sans-serif; }
 canvas { display:block; }
 #mc { position:fixed; bottom:0; left:0; width:100%; height:220px; display:none; pointer-events:all; z-index:10; }
 .cp { position:absolute; bottom:22px; display:grid; grid-template-columns:repeat(3,64px); grid-template-rows:repeat(2,64px); gap:6px; }
@@ -22,7 +25,7 @@ canvas { display:block; }
 #mc.solo .cp.R{display:none;}
 #mc.solo .cp.L{left:auto;right:14px;}
 #mc.solo .cp.L .shoot-btn{display:none;}
-#solo-sh{display:none;position:absolute;bottom:54px;left:14px;width:64px;height:64px;border-radius:14px;align-items:center;justify-content:center;font-size:26px;color:#fff;background:rgba(235,95,64,0.25);border:2px solid rgba(235,95,64,0.55);user-select:none;-webkit-user-select:none;}
+#solo-sh{display:none;position:absolute;bottom:22px;left:14px;width:64px;height:134px;border-radius:14px;align-items:center;justify-content:center;font-size:26px;color:#fff;background:rgba(235,95,64,0.25);border:2px solid rgba(235,95,64,0.55);user-select:none;-webkit-user-select:none;}
 #mc.solo #solo-sh{display:flex;}
 </style>
 </head>
@@ -1207,7 +1210,7 @@ function drawBtn(x,y,w,h,label,col,textCol){
   hi.addColorStop(0,'rgba(255,255,255,0.18)');hi.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=hi;rr(x,y,w,h*0.5,12);ctx.fill();
   ctx.shadowBlur=6;ctx.shadowColor='rgba(0,0,0,0.5)';ctx.fillStyle=textCol||'#fff';
-  ctx.font='bold 20px Arial';ctx.textAlign='center';ctx.fillText(label,x+w/2,y+h/2+7);ctx.shadowBlur=0;
+  ctx.font='bold 20px Poppins,Arial,sans-serif';ctx.textAlign='center';ctx.fillText(label,x+w/2,y+h/2+7);ctx.shadowBlur=0;
 }
 
 function drawBG(){
@@ -1329,14 +1332,14 @@ let _sBtns=null;
 function drawStart(){
   drawBG();
   const mob=W<560;
-  // ── Huge background logo, centered on left 50% of screen ──
-  const bgLs=Math.min(H/60,W/40);           // scale so flame fills ~half the screen height
-  const bgLogoW=(55+27.5)*bgLs;
-  // Place so right edge of logo lands at ~50% of screen width (only right half visible)
-  const bgLx=W*0.5-bgLogoW;                 // shift left so logo center is off-screen left
-  const bgLy=H*0.5-75.18*bgLs*0.5;         // vertically center the flame
+  // ── Huge background logo — center of flame at screen left edge (right half visible) ──
+  const bgLs=Math.min(H*0.014, W*0.026);    // flame fills ~80% of screen height
+  // SVG flame center ≈ x=82.86 in SVG space; after translate(-55) → world offset = (82.86-55)*bgLs
+  // Place that center at x=0 so only right half of logo shows
+  const bgLx=-(82.86-55)*bgLs;
+  const bgLy=H*0.5-(SVG_H/2-1)*bgLs;       // vertically centered
   ctx.save();
-  ctx.globalAlpha=0.18;
+  ctx.globalAlpha=1;
   ctx.translate(bgLx,bgLy);ctx.scale(bgLs,bgLs);ctx.translate(-55,-1);
   const bgFp=new Path2D(SVG_PATHS.flame);
   ctx.shadowBlur=0;
@@ -1349,14 +1352,14 @@ function drawStart(){
   ctx.save();ctx.textAlign='center';
   // Eyebrow: "DARK BURN"
   const eyeSize=Math.min(mob?22:28, W*0.06);
-  ctx.font=`bold ${eyeSize}px Arial`;ctx.fillStyle='rgba(235,95,64,0.9)';
+  ctx.font=`bold ${eyeSize}px Poppins,Arial,sans-serif`;ctx.fillStyle='rgba(235,95,64,0.9)';
   ctx.shadowBlur=12;ctx.shadowColor='#eb5f40';
   const titleCY=H*(mob?0.38:0.42);
   ctx.fillText('DARK BURN',W/2,titleCY-eyeSize*0.4);
   // Main title: "FIGHT CLUB"
   const mainSize=Math.min(mob?54:78, W*0.16);
   ctx.shadowBlur=40;ctx.shadowColor='rgba(235,95,64,0.6)';
-  ctx.font=`bold ${mainSize}px Arial`;ctx.fillStyle='#ffffff';
+  ctx.font=`bold ${mainSize}px Poppins,Arial,sans-serif`;ctx.fillStyle='#ffffff';
   ctx.fillText('FIGHT CLUB',W/2,titleCY+mainSize*0.85);
   ctx.shadowBlur=0;
 
@@ -1372,21 +1375,23 @@ function drawStart(){
   }
   drawBtn(b1x,b1y,bW,bH,'1 PLAYER','#eb5f40','#fff');
   if(mob){
-    ctx.globalAlpha=0.35;
-    drawBtn(b2x,b2y,bW,bH,'2 PLAYERS','#4a9eca','#fff');
-    ctx.globalAlpha=1;
-    ctx.font='11px Arial';ctx.fillStyle='rgba(255,255,255,0.4)';ctx.textAlign='center';
-    ctx.fillText('2 players requires a larger screen',W/2,b2y+bH+14);
+    // Outline-only 2P button on phone
+    ctx.save();
+    ctx.strokeStyle='#4a9eca';ctx.lineWidth=2;rr(b2x,b2y,bW,bH,12);ctx.stroke();
+    ctx.font='bold 20px Poppins,Arial,sans-serif';ctx.textAlign='center';ctx.fillStyle='#4a9eca';
+    ctx.fillText('2 PLAYERS',b2x+bW/2,b2y+bH/2+7);ctx.restore();
+    ctx.font='11px Poppins,Arial,sans-serif';ctx.fillStyle='rgba(255,255,255,0.35)';ctx.textAlign='center';
+    ctx.fillText('2 players requires a larger screen',W/2,b2y+bH+16);
   } else {
     drawBtn(b2x,b2y,bW,bH,'2 PLAYERS','#4a9eca','#fff');
   }
-  // How To Play — desktop only (not on touch devices)
+  // How To Play — desktop (non-touch) only, with generous spacing
   let ibW=0,ibH=0,ibX=0,ibY=0;
   if(!_hasTouchInput){
-    ibW=160;ibH=36;ibX=W/2-ibW/2;ibY=(mob?b2y:b1y)+bH+16;
+    ibW=180;ibH=50;ibX=W/2-ibW/2;ibY=b1y+bH+48;
     drawBtn(ibX,ibY,ibW,ibH,'HOW TO PLAY','rgba(255,255,255,0.12)','rgba(255,255,255,0.7)');
   }
-  ctx.font=`${mob?11:13}px Arial`;ctx.fillStyle='rgba(255,255,255,0.28)';
+  ctx.font=`${mob?11:13}px Poppins,Arial,sans-serif`;ctx.fillStyle='rgba(255,255,255,0.28)';
   ctx.fillText('Game Designers: Dean & Devon Fanton  |  @redfiredean',W/2,H*0.96);
   ctx.restore();
   _sBtns={
@@ -1415,7 +1420,7 @@ function drawInstructions(){
 
   ctx.textAlign='center';
   ctx.shadowBlur=20;ctx.shadowColor='#eb5f40';
-  ctx.font='bold 26px Arial';ctx.fillStyle='#fff';
+  ctx.font='bold 26px Poppins,Arial,sans-serif';ctx.fillStyle='#fff';
   ctx.fillText('HOW TO PLAY',W/2,py+44);
   ctx.shadowBlur=0;
 
@@ -1431,35 +1436,35 @@ function drawInstructions(){
     // Single-column layout on mobile
     const lx2=px+24;
     ctx.textAlign='left';
-    ctx.font='bold 12px Arial';ctx.fillStyle='rgba(235,95,64,0.9)';
+    ctx.font='bold 12px Poppins,Arial,sans-serif';ctx.fillStyle='rgba(235,95,64,0.9)';
     ctx.fillText('PLAYER 1',lx2,py+80);ctx.fillText('PLAYER 2',lx2+pw/2,py+80);
     ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(px+16,py+86,pw-32,1);
     rows.forEach((r,i)=>{
       const ry=py+104+i*30;
-      ctx.font='bold 11px Arial';ctx.fillStyle='rgba(255,255,255,0.45)';ctx.fillText(r.label+':',lx2,ry);
-      ctx.font='11px Arial';ctx.fillStyle='#4a9eca';ctx.fillText(r.p1,lx2,ry+16);
+      ctx.font='bold 11px Poppins,Arial,sans-serif';ctx.fillStyle='rgba(255,255,255,0.45)';ctx.fillText(r.label+':',lx2,ry);
+      ctx.font='11px Poppins,Arial,sans-serif';ctx.fillStyle='#4a9eca';ctx.fillText(r.p1,lx2,ry+16);
       ctx.fillStyle='#4db84e';ctx.fillText(r.p2,lx2+pw/2,ry+16);
     });
     ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(px+16,py+220,pw-32,1);
-    ctx.font='11px Arial';ctx.fillStyle='rgba(255,255,255,0.55)';ctx.textAlign='center';
+    ctx.font='11px Poppins,Arial,sans-serif';ctx.fillStyle='rgba(255,255,255,0.55)';ctx.textAlign='center';
     ctx.fillText('Shoot the logo — last one standing wins!',W/2,py+240);
     ctx.fillText('Grenades & bombs destroy logo sections.',W/2,py+260);
   } else {
     ctx.textAlign='left';
     const lx=px+32,col1=lx;
     const colOff1=Math.round(pw*0.38),colOff2=Math.round(pw*0.62);
-    ctx.font='bold 13px Arial';ctx.fillStyle='rgba(235,95,64,0.9)';
+    ctx.font='bold 13px Poppins,Arial,sans-serif';ctx.fillStyle='rgba(235,95,64,0.9)';
     ctx.fillText('ACTION',col1,py+82);ctx.fillText('PLAYER 1',col1+colOff1,py+82);ctx.fillText('PLAYER 2',col1+colOff2,py+82);
     ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(px+20,py+88,pw-40,1);
     rows.forEach((r,i)=>{
       const ry=py+108+i*36;
-      ctx.font='13px Arial';ctx.fillStyle='rgba(255,255,255,0.7)';
+      ctx.font='13px Poppins,Arial,sans-serif';ctx.fillStyle='rgba(255,255,255,0.7)';
       ctx.fillText(r.label,col1,ry);
       ctx.fillStyle='#4a9eca';ctx.fillText(r.p1,col1+colOff1,ry);
       ctx.fillStyle='#4db84e';ctx.fillText(r.p2,col1+colOff2,ry);
     });
     ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(px+20,py+258,pw-40,1);
-    ctx.font='13px Arial';ctx.fillStyle='rgba(255,255,255,0.55)';ctx.textAlign='center';
+    ctx.font='13px Poppins,Arial,sans-serif';ctx.fillStyle='rgba(255,255,255,0.55)';ctx.textAlign='center';
     ctx.fillText('Shoot the Dark Burn logo to destroy it — last one standing wins!',W/2,py+282);
     ctx.fillText('Grenades blow up sections of the logo. Bombs fall from the sky.',W/2,py+304);
   }
@@ -1481,7 +1486,7 @@ function drawCharSelect(){
   const mob=W<560;
   ctx.save();ctx.textAlign='center';
   const titleSz=Math.min(32,W*0.072);
-  ctx.shadowBlur=20;ctx.shadowColor='#eb5f40';ctx.font=`bold ${titleSz}px Arial`;ctx.fillStyle='#fff';
+  ctx.shadowBlur=20;ctx.shadowColor='#eb5f40';ctx.font=`bold ${titleSz}px Poppins,Arial,sans-serif`;ctx.fillStyle='#fff';
   const title=gameMode===1?'Choose Your Fighter':charStep===0?'Player 1 — Choose Fighter':'Player 2 — Choose Fighter';
   ctx.fillText(title,W/2,H*0.11);ctx.shadowBlur=0;ctx.restore();
   // Scale cards to fit screen width
@@ -1529,10 +1534,10 @@ function drawCharSelect(){
     const nameSz=Math.min(18,cW*0.13);
     const badgeSz=Math.min(12,cW*0.09);
     ctx.save();ctx.textAlign='center';
-    ctx.shadowBlur=12;ctx.shadowColor=ch.color;ctx.font=`bold ${nameSz}px Arial`;ctx.fillStyle=ch.color;
+    ctx.shadowBlur=12;ctx.shadowColor=ch.color;ctx.font=`bold ${nameSz}px Poppins,Arial,sans-serif`;ctx.fillStyle=ch.color;
     ctx.fillText(ch.name,cx+cW/2,cY+imgH+26);
-    if(isSel){ctx.font=`bold ${badgeSz}px Arial`;ctx.fillStyle=ch.color;ctx.fillText('✓ SELECTED',cx+cW/2,cY+imgH+44);}
-    if(isLocked){ctx.font=`bold ${badgeSz}px Arial`;ctx.fillStyle='rgba(255,80,80,0.9)';ctx.fillText('✗ TAKEN',cx+cW/2,cY+imgH+44);}
+    if(isSel){ctx.font=`bold ${badgeSz}px Poppins,Arial,sans-serif`;ctx.fillStyle=ch.color;ctx.fillText('✓ SELECTED',cx+cW/2,cY+imgH+44);}
+    if(isLocked){ctx.font=`bold ${badgeSz}px Poppins,Arial,sans-serif`;ctx.fillStyle='rgba(255,80,80,0.9)';ctx.fillText('✗ TAKEN',cx+cW/2,cY+imgH+44);}
     ctx.restore();ctx.globalAlpha=1;
     _cards.push({x:cx,y:cY,w:cW,h:cH,i,locked:isLocked});
   });
@@ -1554,20 +1559,20 @@ function drawHUD(){
     ctx.shadowBlur=10;ctx.shadowColor=p1.color;
     ctx.fillStyle=p1.color;ctx.beginPath();ctx.arc(16,20,5,0,Math.PI*2);ctx.fill();
     ctx.shadowBlur=4;ctx.fillStyle='rgba(255,255,255,0.92)';
-    ctx.font='bold 26px Arial';ctx.textAlign='left';
+    ctx.font='bold 26px Poppins,Arial,sans-serif';ctx.textAlign='left';
     ctx.fillText(scores[0],28,31);
     // Name
-    ctx.shadowBlur=8;ctx.shadowColor=p1.color;ctx.font='bold 13px Arial';ctx.fillStyle=p1.color;
+    ctx.shadowBlur=8;ctx.shadowColor=p1.color;ctx.font='bold 13px Poppins,Arial,sans-serif';ctx.fillStyle=p1.color;
     ctx.fillText(p1.name,28,48);
     // P2 score
     const p2=CHARS_DEF[selChars[1]];
     ctx.shadowBlur=10;ctx.shadowColor=p2.color;
     ctx.fillStyle=p2.color;ctx.beginPath();ctx.arc(W-16,20,5,0,Math.PI*2);ctx.fill();
     ctx.shadowBlur=4;ctx.fillStyle='rgba(255,255,255,0.92)';
-    ctx.font='bold 26px Arial';ctx.textAlign='right';
+    ctx.font='bold 26px Poppins,Arial,sans-serif';ctx.textAlign='right';
     ctx.fillText(scores[1],W-28,31);
     // Name
-    ctx.shadowBlur=8;ctx.shadowColor=p2.color;ctx.font='bold 13px Arial';ctx.fillStyle=p2.color;
+    ctx.shadowBlur=8;ctx.shadowColor=p2.color;ctx.font='bold 13px Poppins,Arial,sans-serif';ctx.fillStyle=p2.color;
     ctx.fillText(p2.name,W-28,48);
   }
   // No score display at all for 1P mode
@@ -1580,7 +1585,7 @@ function drawHUD(){
   const hi=ctx.createLinearGradient(bx,by,bx,by+bh*0.5);
   hi.addColorStop(0,'rgba(255,255,255,0.09)');hi.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=hi;rr(bx,by,bw,bh/2,bh/2);ctx.fill();
-  ctx.font='11px Arial';ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,0.48)';
+  ctx.font='11px Poppins,Arial,sans-serif';ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,0.48)';
   ctx.fillText('START OVER',W/2,by+bh*0.68);
   ctx.restore();
 }
@@ -1593,11 +1598,11 @@ function drawRoundEnd(){
   else{msg='ROUND OVER';col='#fff';}
   // Scale font so text never overflows screen width
   let rsz=Math.min(78,W*0.17);
-  ctx.font=`bold ${rsz}px Arial`;
-  while(ctx.measureText(msg).width>W*0.9&&rsz>18){rsz-=2;ctx.font=`bold ${rsz}px Arial`;}
+  ctx.font=`bold ${rsz}px Poppins,Arial,sans-serif`;
+  while(ctx.measureText(msg).width>W*0.9&&rsz>18){rsz-=2;ctx.font=`bold ${rsz}px Poppins,Arial,sans-serif`;}
   ctx.shadowBlur=40;ctx.shadowColor=col;ctx.fillStyle=col;
   ctx.fillText(msg,W/2,H/2);ctx.shadowBlur=0;
-  ctx.font=`${Math.min(22,W*0.05)}px Arial`;ctx.fillStyle='rgba(255,255,255,0.6)';
+  ctx.font=`${Math.min(22,W*0.05)}px Poppins,Arial,sans-serif`;ctx.fillStyle='rgba(255,255,255,0.6)';
   ctx.fillText('Next round starting…',W/2,H/2+rsz*0.8);ctx.restore();
 }
 
@@ -1704,7 +1709,11 @@ function loop(ts){
 // INIT
 // ══════════════════════════════════════════════════════════
 function resize(){
-  W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;
+  const dpr=Math.min(window.devicePixelRatio||1,3);
+  W=window.innerWidth;H=window.innerHeight;
+  canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  ctx.scale(dpr,dpr);
   atmoParticles=[];for(let i=0;i<45;i++) atmoParticles.push(new AtmoParticle());
   if(gameState==='playing'||gameState==='roundEnd'){
     const ox=platX,oy=platY;setupPlat();
