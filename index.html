@@ -24,8 +24,9 @@ canvas { display:block; }
 /* Solo (1P phone) — shoot on left, D-pad on right */
 #mc.solo .cp.R{display:none;}
 #mc.solo .cp.L{left:auto;right:14px;}
-#mc.solo .cp.L .shoot-btn{display:none;}
-#solo-sh{display:none;position:absolute;bottom:22px;left:14px;width:64px;height:134px;border-radius:14px;align-items:center;justify-content:center;font-size:26px;color:#fff;background:rgba(235,95,64,0.25);border:2px solid rgba(235,95,64,0.55);user-select:none;-webkit-user-select:none;}
+/* visibility:hidden keeps grid slot, so ← and → stay in cols 1 & 3 */
+#mc.solo .cp.L .shoot-btn{visibility:hidden;pointer-events:none;}
+#solo-sh{display:none;position:absolute;bottom:57px;left:14px;width:64px;height:64px;border-radius:14px;align-items:center;justify-content:center;font-size:26px;color:#fff;background:rgba(235,95,64,0.25);border:2px solid rgba(235,95,64,0.55);user-select:none;-webkit-user-select:none;}
 #mc.solo #solo-sh{display:flex;}
 </style>
 </head>
@@ -1332,12 +1333,11 @@ let _sBtns=null;
 function drawStart(){
   drawBG();
   const mob=W<560;
-  // ── Huge background logo — center of flame at screen left edge (right half visible) ──
-  const bgLs=Math.min(H*0.014, W*0.026);    // flame fills ~80% of screen height
-  // SVG flame center ≈ x=82.86 in SVG space; after translate(-55) → world offset = (82.86-55)*bgLs
-  // Place that center at x=0 so only right half of logo shows
-  const bgLx=-(82.86-55)*bgLs;
-  const bgLy=H*0.5-(SVG_H/2-1)*bgLs;       // vertically centered
+  // ── Huge background logo — fills full screen height, left-half off-screen ──
+  const bgLs=H/SVG_H;                        // scale so flame exactly fills screen height
+  const bgLy=bgLs;                            // top of SVG (y=1 after translate) lands at y=0
+  // Flame SVG center ≈ x=82.86; shift right so center sits at ~20% of screen width
+  const bgLx=W*0.20-(82.86-55)*bgLs;
   ctx.save();
   ctx.globalAlpha=1;
   ctx.translate(bgLx,bgLy);ctx.scale(bgLs,bgLs);ctx.translate(-55,-1);
