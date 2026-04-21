@@ -18,6 +18,9 @@ canvas { display:block; }
 .btn.shoot-btn.on{background:rgba(235,95,64,0.65);}
 .cp.R .btn.shoot-btn.on{background:rgba(74,158,202,0.65);}
 .be{background:transparent;border:none;}
+#mc.solo .cp.R{display:none;}
+#mc.solo .cp.L{left:50%;transform:translateX(-50%);}
+#mc.solo{display:flex;justify-content:center;}
 </style>
 </head>
 <body>
@@ -245,8 +248,8 @@ let bgThemeIdx=0;
 // ══════════════════════════════════════════════════════════
 // CONSTANTS
 // ══════════════════════════════════════════════════════════
-const SCALE=4,SVG_W=169.18,SVG_H=75.18;
-const PLAT_W=SVG_W*SCALE,PLAT_H=SVG_H*SCALE;
+const SVG_W=169.18,SVG_H=75.18;
+let SCALE=4,PLAT_W=SVG_W*SCALE,PLAT_H=SVG_H*SCALE;
 const GRAVITY=1650,JUMP_V=-670,MOVE_SPD=180,BULLET_SPD=820,FIRE_CD=0.45;
 const CHAR_W=20,CHAR_H=52;
 const MAX_GRENADES=2;
@@ -1117,7 +1120,11 @@ const _mcEl=document.getElementById('mc');
 const _hasTouchInput='ontouchstart' in window||navigator.maxTouchPoints>0;
 function setMC(){
   if(!_hasTouchInput) return;
-  _mcEl.style.display=(gameState==='playing'||gameState==='roundEnd')?'flex':'none';
+  const active=gameState==='playing'||gameState==='roundEnd';
+  _mcEl.style.display=active?'flex':'none';
+  // Single D-pad on phone screens or 1P mode
+  if(W<560||gameMode===1) _mcEl.classList.add('solo');
+  else _mcEl.classList.remove('solo');
 }
 (()=>{
   if(!_hasTouchInput) return;
@@ -1143,6 +1150,9 @@ function setMC(){
 // SETUP / RESET
 // ══════════════════════════════════════════════════════════
 function setupPlat(){
+  // On narrow phones, shrink the platform to fit the screen
+  SCALE = W<560 ? Math.max(2, Math.round(W*0.86/SVG_W*10)/10) : 4;
+  PLAT_W=SVG_W*SCALE; PLAT_H=SVG_H*SCALE;
   platX=W/2-PLAT_W/2;platY=H*0.64-PLAT_H;
   chunks=CHUNK_DEFS.map(d=>new PlatformChunk(d));
 }
@@ -1340,7 +1350,16 @@ function drawStart(){
     b2x=W/2+18;    b2y=H*0.6;
   }
   drawBtn(b1x,b1y,bW,bH,'1 PLAYER','#eb5f40','#fff');
-  drawBtn(b2x,b2y,bW,bH,'2 PLAYERS','#4a9eca','#fff');
+  if(mob){
+    // 2P needs a bigger screen
+    ctx.globalAlpha=0.35;
+    drawBtn(b2x,b2y,bW,bH,'2 PLAYERS','#4a9eca','#fff');
+    ctx.globalAlpha=1;
+    ctx.font='11px Arial';ctx.fillStyle='rgba(255,255,255,0.4)';ctx.textAlign='center';
+    ctx.fillText('2 players requires a larger screen',W/2,b2y+bH+14);
+  } else {
+    drawBtn(b2x,b2y,bW,bH,'2 PLAYERS','#4a9eca','#fff');
+  }
   const lowestBtnY=mob?b2y:b1y;
   const ibW=mob?bW:160,ibH=mob?46:36,ibX=W/2-ibW/2,ibY=lowestBtnY+bH+16;
   drawBtn(ibX,ibY,ibW,ibH,'HOW TO PLAY','rgba(255,255,255,0.12)','rgba(255,255,255,0.7)');
@@ -1450,10 +1469,13 @@ function drawCharSelect(){
   const imgH=Math.round(cW/170*152);
   const total=CHARS_DEF.length*(cW+gap)-gap;
   const sx=W/2-total/2;
-  // Center cards vertically in available space above continue button
+  // Center cards between title and continue button, never overlapping title
   const mobileCtrlClear=_hasTouchInput?230:0;
   const availH=H-mobileCtrlClear;
-  const cY=H*0.17+(availH*0.5-H*0.17-cH)/2;
+  const contH2=52,cy2calc=availH-contH2-24;
+  const titleBottom=H*0.11+titleSz+18;
+  const midY=(titleBottom+cy2calc)/2;
+  const cY=Math.max(titleBottom, midY-cH/2);
   _cards=[];
   CHARS_DEF.forEach((ch,i)=>{
     const cx=sx+i*(cW+gap);
@@ -1566,7 +1588,7 @@ canvas.addEventListener('click',e=>{
       return;
     }
     if(inR(mx,my,_sBtns.p1)){gameMode=1;gameState='charSelect';charStep=0;setMC();}
-    else if(inR(mx,my,_sBtns.p2)){gameMode=2;gameState='charSelect';charStep=0;setMC();}
+    else if(inR(mx,my,_sBtns.p2)&&W>=560){gameMode=2;gameState='charSelect';charStep=0;setMC();}
     else if(_sBtns.info&&inR(mx,my,_sBtns.info)){_showInstructions=true;}
     return;
   }
