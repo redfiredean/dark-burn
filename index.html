@@ -8,15 +8,16 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 body { overflow:hidden; background:#000; touch-action:none; font-family:'Arial',sans-serif; }
 canvas { display:block; }
-#mc { position:fixed; bottom:0; left:0; width:100%; height:200px; display:none; pointer-events:all; z-index:10; }
-.cp { position:absolute; bottom:20px; display:grid; grid-template-columns:repeat(3,58px); grid-template-rows:repeat(2,58px); gap:5px; }
-.cp.L{left:18px;}.cp.R{right:18px;}
-.btn{width:58px;height:58px;background:rgba(255,255,255,0.12);border:2px solid rgba(255,255,255,0.3);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;user-select:none;-webkit-user-select:none;}
-.btn.on{background:rgba(255,255,255,0.38);}
+#mc { position:fixed; bottom:0; left:0; width:100%; height:220px; display:none; pointer-events:all; z-index:10; }
+.cp { position:absolute; bottom:22px; display:grid; grid-template-columns:repeat(3,64px); grid-template-rows:repeat(2,64px); gap:6px; }
+.cp.L{left:14px;}.cp.R{right:14px;}
+.btn{width:64px;height:64px;background:rgba(255,255,255,0.12);border:2px solid rgba(255,255,255,0.3);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;user-select:none;-webkit-user-select:none;}
+.btn.shoot-btn{background:rgba(235,95,64,0.25);border-color:rgba(235,95,64,0.55);}
+.cp.R .btn.shoot-btn{background:rgba(74,158,202,0.25);border-color:rgba(74,158,202,0.55);}
+.btn.on{background:rgba(255,255,255,0.42);}
+.btn.shoot-btn.on{background:rgba(235,95,64,0.65);}
+.cp.R .btn.shoot-btn.on{background:rgba(74,158,202,0.65);}
 .be{background:transparent;border:none;}
-.sb{position:absolute;bottom:20px;width:58px;height:58px;border-radius:30px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;border-width:2px;border-style:solid;}
-#sb1{left:210px;background:rgba(235,95,64,0.35);border-color:rgba(235,95,64,0.7);}
-#sb2{right:210px;background:rgba(74,158,202,0.35);border-color:rgba(74,158,202,0.7);}
 </style>
 </head>
 <body>
@@ -24,14 +25,12 @@ canvas { display:block; }
 <div id="mc">
   <div class="cp L">
     <div class="be"></div><div class="btn" data-p="0" data-a="jump">↑</div><div class="be"></div>
-    <div class="btn" data-p="0" data-a="left">←</div><div class="be"></div><div class="btn" data-p="0" data-a="right">→</div>
+    <div class="btn" data-p="0" data-a="left">←</div><div class="btn shoot-btn" data-p="0" data-a="shoot">🔫</div><div class="btn" data-p="0" data-a="right">→</div>
   </div>
-  <div class="sb" id="sb1" data-p="0" data-a="shoot">🔫</div>
   <div class="cp R">
     <div class="be"></div><div class="btn" data-p="1" data-a="jump">↑</div><div class="be"></div>
-    <div class="btn" data-p="1" data-a="left">←</div><div class="be"></div><div class="btn" data-p="1" data-a="right">→</div>
+    <div class="btn" data-p="1" data-a="left">←</div><div class="btn shoot-btn" data-p="1" data-a="shoot">🔫</div><div class="btn" data-p="1" data-a="right">→</div>
   </div>
-  <div class="sb" id="sb2" data-p="1" data-a="shoot">🔫</div>
 </div>
 <script>
 // ══════════════════════════════════════════════════════════
@@ -1114,11 +1113,16 @@ document.addEventListener('keydown',e=>{
   if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
 });
 document.addEventListener('keyup',e=>{keys[e.key]=false;});
+const _mcEl=document.getElementById('mc');
+const _hasTouchInput='ontouchstart' in window||navigator.maxTouchPoints>0;
+function setMC(){
+  if(!_hasTouchInput) return;
+  _mcEl.style.display=(gameState==='playing'||gameState==='roundEnd')?'flex':'none';
+}
 (()=>{
-  const mc=document.getElementById('mc');
-  if('ontouchstart' in window||navigator.maxTouchPoints>0) mc.style.display='block';
+  if(!_hasTouchInput) return;
   const getAct=el=>{if(!el) return null;const p=el.dataset.p,a=el.dataset.a;return(p!=null&&a)?`p${p}-${a}`:null;};
-  mc.addEventListener('touchstart',e=>{
+  _mcEl.addEventListener('touchstart',e=>{
     for(const t of e.changedTouches){
       const el=document.elementFromPoint(t.clientX,t.clientY);
       const act=getAct(el);
@@ -1126,7 +1130,7 @@ document.addEventListener('keyup',e=>{keys[e.key]=false;});
     }
     e.preventDefault();
   },{passive:false});
-  mc.addEventListener('touchend',e=>{
+  _mcEl.addEventListener('touchend',e=>{
     for(const t of e.changedTouches){
       const el=document.elementFromPoint(t.clientX,t.clientY);
       const act=getAct(el);if(act){touch[act]=false;el&&el.classList.remove('on');}
@@ -1163,13 +1167,13 @@ function initRoundTimers(){
 function startGame(){
   setupPlat();spawnChars();
   bullets=[];particles=[];fragments=[];grenades=[];bombs=[];ripples=[];
-  gameState='playing';roundWinner=-1;initRoundTimers();
+  gameState='playing';roundWinner=-1;initRoundTimers();setMC();
 }
 function resetRound(){
   bgThemeIdx=Math.floor(Math.random()*BG_THEMES.length);
   setupPlat();spawnChars();
   bullets=[];particles=[];fragments=[];grenades=[];bombs=[];ripples=[];
-  gameState='playing';roundWinner=-1;initRoundTimers();
+  gameState='playing';roundWinner=-1;initRoundTimers();setMC();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1309,7 +1313,10 @@ function spawnFireParticles(fc){
 let _sBtns=null;
 function drawStart(){
   drawBG();
-  const ls=8;const lx=W/2-(55+27.5)*ls,ly=H*0.04;
+  const mob=W<560;
+  // Scale flame logo to fit screen
+  const ls=Math.min(8,W/103);
+  const logoW=(55+27.5)*ls,lx=W/2-logoW/2,ly=H*(mob?0.04:0.04);
   ctx.save();ctx.translate(lx,ly);ctx.scale(ls,ls);ctx.translate(-55,-1);
   const fp=new Path2D(SVG_PATHS.flame);
   ctx.shadowBlur=40;ctx.shadowColor='#ff4400';
@@ -1317,22 +1324,34 @@ function drawStart(){
   fg.addColorStop(0,'#eb5f40');fg.addColorStop(1,'#e41f13');
   ctx.fillStyle=fg;ctx.fill(fp);ctx.restore();
   ctx.save();ctx.textAlign='center';
-  ctx.shadowBlur=30;ctx.shadowColor='#eb5f40';ctx.font='bold 66px Arial';ctx.fillStyle='#ffffff';
-  ctx.fillText('DARK BURN',W/2,H*0.44);ctx.shadowBlur=0;
-  ctx.font='15px Arial';ctx.fillStyle='rgba(255,255,255,0.45)';
-  ctx.fillText('Custom Designed for the Creators at Dark Burn',W/2,H*0.51);
-  const bW=190,bH=58,bY=H*0.6;const b1x=W/2-bW-18,b2x=W/2+18;
-  drawBtn(b1x,bY,bW,bH,'1 PLAYER','#eb5f40','#fff');
-  drawBtn(b2x,bY,bW,bH,'2 PLAYERS','#4a9eca','#fff');
-  // Instructions button (small, below main buttons)
-  const ibW=160,ibH=36,ibX=W/2-ibW/2,ibY=bY+bH+20;
+  const titleSize=Math.min(66,W*0.15);
+  ctx.shadowBlur=30;ctx.shadowColor='#eb5f40';ctx.font=`bold ${titleSize}px Arial`;ctx.fillStyle='#ffffff';
+  ctx.fillText('DARK BURN',W/2,H*(mob?0.42:0.44));ctx.shadowBlur=0;
+  ctx.font=`${mob?12:15}px Arial`;ctx.fillStyle='rgba(255,255,255,0.45)';
+  ctx.fillText('Custom Designed for the Creators at Dark Burn',W/2,H*(mob?0.48:0.51));
+  // Buttons — stack vertically on mobile, side-by-side on desktop
+  const bW=mob?Math.min(260,W*0.68):190,bH=mob?54:58;
+  let b1x,b1y,b2x,b2y;
+  if(mob){
+    b1x=W/2-bW/2; b1y=H*0.56;
+    b2x=W/2-bW/2; b2y=b1y+bH+14;
+  } else {
+    b1x=W/2-bW-18; b1y=H*0.6;
+    b2x=W/2+18;    b2y=H*0.6;
+  }
+  drawBtn(b1x,b1y,bW,bH,'1 PLAYER','#eb5f40','#fff');
+  drawBtn(b2x,b2y,bW,bH,'2 PLAYERS','#4a9eca','#fff');
+  const lowestBtnY=mob?b2y:b1y;
+  const ibW=mob?bW:160,ibH=mob?46:36,ibX=W/2-ibW/2,ibY=lowestBtnY+bH+16;
   drawBtn(ibX,ibY,ibW,ibH,'HOW TO PLAY','rgba(255,255,255,0.12)','rgba(255,255,255,0.7)');
-  ctx.font='12px Arial';ctx.fillStyle='rgba(255,255,255,0.22)';
-  ctx.fillText('or press H',W/2,ibY+ibH+18);
-  ctx.font='13px Arial';ctx.fillStyle='rgba(255,255,255,0.28)';
-  ctx.fillText('Game Designers: Dean & Devon Fanton  |  @redfiredean',W/2,H*0.93);
+  if(!mob){
+    ctx.font='12px Arial';ctx.fillStyle='rgba(255,255,255,0.22)';
+    ctx.fillText('or press H',W/2,ibY+ibH+18);
+  }
+  ctx.font=`${mob?11:13}px Arial`;ctx.fillStyle='rgba(255,255,255,0.28)';
+  ctx.fillText('Game Designers: Dean & Devon Fanton  |  @redfiredean',W/2,H*0.96);
   ctx.restore();
-  _sBtns={p1:{x:b1x,y:bY,w:bW,h:bH},p2:{x:b2x,y:bY,w:bW,h:bH},info:{x:ibX,y:ibY,w:ibW,h:ibH}};
+  _sBtns={p1:{x:b1x,y:b1y,w:bW,h:bH},p2:{x:b2x,y:b2y,w:bW,h:bH},info:{x:ibX,y:ibY,w:ibW,h:ibH}};
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1358,42 +1377,50 @@ function drawInstructions(){
   ctx.fillText('HOW TO PLAY',W/2,py+44);
   ctx.shadowBlur=0;
 
-  ctx.textAlign='left';
-  const lx=px+32,col1=lx,col2=px+pw/2+10;
-  const lines=[
-    ['1 PLAYER',null,col1],
-    ['WASD — Move / Jump',null,col1],
-    ['G or Space — Shoot',null,col1],
-    ['Hold G/Space — Grenade',null,col1],
-    ['','',''],
-    ['2 PLAYERS',null,col2-pw/2+lx-px],
-    ['P1: WASD + G',null,col1],
-    ['P2: Arrows + /',null,col1],
-  ];
-
+  const mob=W<560;
   const rows=[
     {label:'Move / Jump',   p1:'A D W',       p2:'← → ↑'},
-    {label:'Shoot',         p1:'G  or  Space', p2:'Option'},
-    {label:'Grenade',       p1:'Hold G/Space', p2:'Hold / '},
+    {label:'Shoot',         p1:'G / Space',    p2:mob?'Option':'Option'},
+    {label:'Grenade',       p1:'Hold G/Space', p2:'Hold Option'},
     {label:'Duck',          p1:'S',            p2:'↓'},
   ];
 
-  ctx.font='bold 13px Arial';ctx.fillStyle='rgba(235,95,64,0.9)';
-  ctx.fillText('ACTION',col1,py+82);ctx.fillText('PLAYER 1',col1+160,py+82);ctx.fillText('PLAYER 2',col1+310,py+82);
-  ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(px+20,py+88,pw-40,1);
-
-  rows.forEach((r,i)=>{
-    const ry=py+108+i*36;
-    ctx.font='13px Arial';ctx.fillStyle='rgba(255,255,255,0.7)';
-    ctx.fillText(r.label,col1,ry);
-    ctx.fillStyle='#4a9eca';ctx.fillText(r.p1,col1+160,ry);
-    ctx.fillStyle='#4db84e';ctx.fillText(r.p2,col1+310,ry);
-  });
-
-  ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(px+20,py+258,pw-40,1);
-  ctx.font='13px Arial';ctx.fillStyle='rgba(255,255,255,0.55)';ctx.textAlign='center';
-  ctx.fillText('Shoot the Dark Burn logo to destroy it — last one standing wins!',W/2,py+282);
-  ctx.fillText('Grenades blow up sections of the logo. Bombs fall from the sky.',W/2,py+304);
+  if(mob){
+    // Single-column layout on mobile
+    const lx2=px+24;
+    ctx.textAlign='left';
+    ctx.font='bold 12px Arial';ctx.fillStyle='rgba(235,95,64,0.9)';
+    ctx.fillText('PLAYER 1',lx2,py+80);ctx.fillText('PLAYER 2',lx2+pw/2,py+80);
+    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(px+16,py+86,pw-32,1);
+    rows.forEach((r,i)=>{
+      const ry=py+104+i*30;
+      ctx.font='bold 11px Arial';ctx.fillStyle='rgba(255,255,255,0.45)';ctx.fillText(r.label+':',lx2,ry);
+      ctx.font='11px Arial';ctx.fillStyle='#4a9eca';ctx.fillText(r.p1,lx2,ry+16);
+      ctx.fillStyle='#4db84e';ctx.fillText(r.p2,lx2+pw/2,ry+16);
+    });
+    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(px+16,py+220,pw-32,1);
+    ctx.font='11px Arial';ctx.fillStyle='rgba(255,255,255,0.55)';ctx.textAlign='center';
+    ctx.fillText('Shoot the logo — last one standing wins!',W/2,py+240);
+    ctx.fillText('Grenades & bombs destroy logo sections.',W/2,py+260);
+  } else {
+    ctx.textAlign='left';
+    const lx=px+32,col1=lx;
+    const colOff1=Math.round(pw*0.38),colOff2=Math.round(pw*0.62);
+    ctx.font='bold 13px Arial';ctx.fillStyle='rgba(235,95,64,0.9)';
+    ctx.fillText('ACTION',col1,py+82);ctx.fillText('PLAYER 1',col1+colOff1,py+82);ctx.fillText('PLAYER 2',col1+colOff2,py+82);
+    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(px+20,py+88,pw-40,1);
+    rows.forEach((r,i)=>{
+      const ry=py+108+i*36;
+      ctx.font='13px Arial';ctx.fillStyle='rgba(255,255,255,0.7)';
+      ctx.fillText(r.label,col1,ry);
+      ctx.fillStyle='#4a9eca';ctx.fillText(r.p1,col1+colOff1,ry);
+      ctx.fillStyle='#4db84e';ctx.fillText(r.p2,col1+colOff2,ry);
+    });
+    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(px+20,py+258,pw-40,1);
+    ctx.font='13px Arial';ctx.fillStyle='rgba(255,255,255,0.55)';ctx.textAlign='center';
+    ctx.fillText('Shoot the Dark Burn logo to destroy it — last one standing wins!',W/2,py+282);
+    ctx.fillText('Grenades blow up sections of the logo. Bombs fall from the sky.',W/2,py+304);
+  }
 
   // Close button
   const cbW=130,cbH=38,cbX=W/2-cbW/2,cbY=py+ph-56;
@@ -1409,18 +1436,28 @@ let _instrCloseBtn=null;
 let _cards=[],_cont=null;
 function drawCharSelect(){
   drawBG();
+  const mob=W<560;
   ctx.save();ctx.textAlign='center';
-  ctx.shadowBlur=20;ctx.shadowColor='#eb5f40';ctx.font='bold 32px Arial';ctx.fillStyle='#fff';
+  const titleSz=Math.min(32,W*0.072);
+  ctx.shadowBlur=20;ctx.shadowColor='#eb5f40';ctx.font=`bold ${titleSz}px Arial`;ctx.fillStyle='#fff';
   const title=gameMode===1?'Choose Your Fighter':charStep===0?'Player 1 — Choose Fighter':'Player 2 — Choose Fighter';
-  ctx.fillText(title,W/2,H*0.13);ctx.shadowBlur=0;ctx.restore();
-  const cW=170,cH=230,gap=22;
+  ctx.fillText(title,W/2,H*0.11);ctx.shadowBlur=0;ctx.restore();
+  // Scale cards to fit screen width
+  const gap=mob?10:22;
+  const maxTotalW=W*0.92;
+  const cW=Math.min(170,Math.floor((maxTotalW-(CHARS_DEF.length-1)*gap)/CHARS_DEF.length));
+  const cH=Math.round(cW/170*230);
+  const imgH=Math.round(cW/170*152);
   const total=CHARS_DEF.length*(cW+gap)-gap;
-  const sx=W/2-total/2,cY=H*0.5-cH/2;
+  const sx=W/2-total/2;
+  // Center cards vertically in available space above continue button
+  const mobileCtrlClear=_hasTouchInput?230:0;
+  const availH=H-mobileCtrlClear;
+  const cY=H*0.17+(availH*0.5-H*0.17-cH)/2;
   _cards=[];
   CHARS_DEF.forEach((ch,i)=>{
     const cx=sx+i*(cW+gap);
     const isSel=(charStep===0&&selChars[0]===i)||(charStep===1&&selChars[1]===i);
-    // In 2P step 1, dim out P1's already-chosen character
     const isLocked=gameMode===2&&charStep===1&&selChars[0]===i;
     ctx.globalAlpha=isLocked?0.28:1;
     ctx.fillStyle='rgba(255,255,255,0.06)';rr(cx,cY,cW,cH,14);ctx.fill();
@@ -1429,13 +1466,13 @@ function drawCharSelect(){
     rr(cx,cY,cW,cH,14);ctx.stroke();ctx.shadowBlur=0;
     const img=charImgs[i];
     if(img.complete&&img.naturalWidth>0){
-      ctx.save();rr(cx+10,cY+10,cW-20,152,8);ctx.clip();
-      ctx.drawImage(img,cx+10,cY+10,cW-20,152);ctx.restore();
-      const vg=ctx.createLinearGradient(0,cY+110,0,cY+162);
+      ctx.save();rr(cx+10,cY+10,cW-20,imgH,8);ctx.clip();
+      ctx.drawImage(img,cx+10,cY+10,cW-20,imgH);ctx.restore();
+      const vg=ctx.createLinearGradient(0,cY+imgH*0.72,0,cY+imgH+10);
       vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(15,15,22,0.9)');
-      ctx.fillStyle=vg;rr(cx+10,cY+10,cW-20,152,8);ctx.fill();
+      ctx.fillStyle=vg;rr(cx+10,cY+10,cW-20,imgH,8);ctx.fill();
     } else {
-      ctx.save();ctx.translate(cx+cW/2,cY+80);
+      ctx.save();ctx.translate(cx+cW/2,cY+cH*0.35);
       ctx.shadowBlur=16;ctx.shadowColor=ch.color;ctx.strokeStyle=ch.color;ctx.lineWidth=3;ctx.lineCap='round';ctx.fillStyle=ch.color;
       ctx.beginPath();ctx.arc(0,-28,13,0,Math.PI*2);ctx.fill();
       ctx.beginPath();ctx.moveTo(0,-15);ctx.lineTo(0,18);ctx.stroke();
@@ -1444,17 +1481,20 @@ function drawCharSelect(){
       ctx.beginPath();ctx.moveTo(0,18);ctx.lineTo(12,38);ctx.stroke();
       ctx.restore();
     }
+    const nameSz=Math.min(18,cW*0.13);
+    const badgeSz=Math.min(12,cW*0.09);
     ctx.save();ctx.textAlign='center';
-    ctx.shadowBlur=12;ctx.shadowColor=ch.color;ctx.font='bold 18px Arial';ctx.fillStyle=ch.color;
-    ctx.fillText(ch.name,cx+cW/2,cY+183);
-    if(isSel){ctx.font='bold 12px Arial';ctx.fillStyle=ch.color;ctx.fillText('✓ SELECTED',cx+cW/2,cY+203);}
-    if(isLocked){ctx.font='bold 12px Arial';ctx.fillStyle='rgba(255,80,80,0.9)';ctx.fillText('✗ TAKEN',cx+cW/2,cY+203);}
+    ctx.shadowBlur=12;ctx.shadowColor=ch.color;ctx.font=`bold ${nameSz}px Arial`;ctx.fillStyle=ch.color;
+    ctx.fillText(ch.name,cx+cW/2,cY+imgH+26);
+    if(isSel){ctx.font=`bold ${badgeSz}px Arial`;ctx.fillStyle=ch.color;ctx.fillText('✓ SELECTED',cx+cW/2,cY+imgH+44);}
+    if(isLocked){ctx.font=`bold ${badgeSz}px Arial`;ctx.fillStyle='rgba(255,80,80,0.9)';ctx.fillText('✗ TAKEN',cx+cW/2,cY+imgH+44);}
     ctx.restore();ctx.globalAlpha=1;
     _cards.push({x:cx,y:cY,w:cW,h:cH,i,locked:isLocked});
   });
-  const cy2=H*0.87;
-  drawBtn(W/2-95,cy2,190,52,'CONTINUE →','#eb5f40','#fff');
-  _cont={x:W/2-95,y:cy2,w:190,h:52};
+  const contW=Math.min(220,W*0.55),contH=52;
+  const cy2=availH-contH-24;
+  drawBtn(W/2-contW/2,cy2,contW,contH,'CONTINUE →','#eb5f40','#fff');
+  _cont={x:W/2-contW/2,y:cy2,w:contW,h:contH};
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1506,10 +1546,11 @@ function drawRoundEnd(){
   let msg,col;
   if(gameMode===2&&roundWinner>=0){msg=`${CHARS_DEF[selChars[roundWinner]].name.toUpperCase()} WINS!`;col=CHARS_DEF[selChars[roundWinner]].color;}
   else{msg='ROUND OVER';col='#fff';}
-  ctx.shadowBlur=40;ctx.shadowColor=col;ctx.font='bold 78px Arial';ctx.fillStyle=col;
+  const rsz=Math.min(78,W*0.17);
+  ctx.shadowBlur=40;ctx.shadowColor=col;ctx.font=`bold ${rsz}px Arial`;ctx.fillStyle=col;
   ctx.fillText(msg,W/2,H/2);ctx.shadowBlur=0;
-  ctx.font='22px Arial';ctx.fillStyle='rgba(255,255,255,0.6)';
-  ctx.fillText('Next round starting…',W/2,H/2+62);ctx.restore();
+  ctx.font=`${Math.min(22,W*0.05)}px Arial`;ctx.fillStyle='rgba(255,255,255,0.6)';
+  ctx.fillText('Next round starting…',W/2,H/2+rsz*0.8);ctx.restore();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1524,8 +1565,8 @@ canvas.addEventListener('click',e=>{
       if(_instrCloseBtn&&inR(mx,my,_instrCloseBtn)) _showInstructions=false;
       return;
     }
-    if(inR(mx,my,_sBtns.p1)){gameMode=1;gameState='charSelect';charStep=0;}
-    else if(inR(mx,my,_sBtns.p2)){gameMode=2;gameState='charSelect';charStep=0;}
+    if(inR(mx,my,_sBtns.p1)){gameMode=1;gameState='charSelect';charStep=0;setMC();}
+    else if(inR(mx,my,_sBtns.p2)){gameMode=2;gameState='charSelect';charStep=0;setMC();}
     else if(_sBtns.info&&inR(mx,my,_sBtns.info)){_showInstructions=true;}
     return;
   }
@@ -1545,7 +1586,7 @@ canvas.addEventListener('click',e=>{
   if((gameState==='playing'||gameState==='roundEnd')&&inR(mx,my,_resetBtn)){
     scores=[0,0];bgThemeIdx=Math.floor(Math.random()*BG_THEMES.length);
     bullets=[];particles=[];fragments=[];grenades=[];bombs=[];ripples=[];
-    gameState='start';
+    gameState='start';setMC();
   }
 });
 
@@ -1622,6 +1663,7 @@ function resize(){
     const dx=platX-ox,dy=platY-oy;
     for(const ch of characters){ch.x+=dx;ch.y+=dy;}
   }
+  setMC();
 }
 window.addEventListener('resize',resize);
 resize();
